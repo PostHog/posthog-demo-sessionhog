@@ -15,8 +15,8 @@ import {
 // Set up __dirname equivalent for ES modules
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const baseDomain = 'https://friendly-dollop-7rj6qj44773rv46-5000.app.github.dev/';
-// const baseDomain = 'https://posthog-demo-3000.fly.dev/';
+// const baseDomain = 'https://friendly-dollop-7rj6qj44773rv46-5000.app.github.dev/';
+const baseDomain = 'https://posthog-demo-3000.fly.dev/';
 
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '.env') });
@@ -86,24 +86,11 @@ async function runSession(sessionNumber) {
 
         try {
             // Initial page load
-            // Add after initial page load
-            await page.goto(`${baseDomain}?utm_source=${utmParams.utm_source}&utm_medium=${utmParams.utm_medium}&utm_campaign=${utmParams.utm_campaign}`, { waitUntil: "domcontentloaded" });
-
-            console.log('Checking for Continue button...');
-            try {
-                // Wait for the button to be visible, with a shorter timeout
-                console.log('Waiting for button...');
-                await page.waitForSelector('button:text("Continue")', { timeout: 5000 });
-                
-                console.log('Button found, attempting click...');
-                await page.click('button:text("Continue")');
-                
-                console.log('Button clicked, adding pause...');
-                await humanPause(page, 'SHORT');
-                
-            } catch (error) {
-                console.log('Error handling Continue button:', error.message);
-            }
+            await page.goto(`${baseDomain}?utm_source=${utmParams.utm_source}&utm_medium=${utmParams.utm_medium}&utm_campaign=${utmParams.utm_campaign}`, { 
+                waitUntil: "networkidle",
+                timeout: 30000 
+            });
+            
             await humanPause(page, 'MEDIUM');
             
             // Navigate to signup with Promise.all to handle navigation
