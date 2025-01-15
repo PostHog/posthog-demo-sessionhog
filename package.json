@@ -1,0 +1,16 @@
+{
+  "name": "hogflix-sessions-service",
+  "version": "1.0.0",
+  "description": "Browserbase sessions service for Hogflix",
+  "main": "sessions_server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node sessions_server.js"
+  },
+  "dependencies": {
+    "@browserbasehq/sdk": "latest",
+    "dotenv": "latest",
+    "express": "^4.17.1",
+    "playwright-core": "latest"
+  }
+}
