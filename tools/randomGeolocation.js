@@ -118,6 +118,27 @@ const cities = [
     country: "US",
     latitude: 34.4208,
     longitude: -119.6982
+  },
+  {
+    city: "Kansas City",
+    state: "KS",
+    country: "US",
+    latitude: 39.1147,
+    longitude: -94.6270
+  },
+  {
+    city: "Prairie Village",
+    state: "KS",
+    country: "US",
+    latitude: 38.9917,
+    longitude: -94.6336
+  },
+  {
+    city: "Saint Charles",
+    state: "MO",
+    country: "US",
+    latitude: 38.7881,
+    longitude: -90.4974
   }
 ];
 
