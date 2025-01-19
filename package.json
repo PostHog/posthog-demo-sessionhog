@@ -5,12 +5,17 @@
   "main": "sessions_server.js",
   "type": "module",
   "scripts": {
-    "start": "node sessions_server.js"
+    "start": "node sessions_server.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@browserbasehq/sdk": "latest",
     "dotenv": "latest",
     "express": "^4.17.1",
     "playwright-core": "latest"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2"
   }
 }
