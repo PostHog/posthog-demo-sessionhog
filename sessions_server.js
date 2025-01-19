@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { randomizeBrowser } from './tools/randomBrowser.js';
+import { randomizeGeolocation } from './tools/randomGeolocation.js';
 import { 
     moveMouseHuman, 
     naturalClick, 
@@ -41,10 +42,21 @@ const bb = new Browserbase({
 async function runSession(sessionNumber) {
     try {
 
-        console.log(`Starting session ${sessionNumber}/${sessionCount}...`);
+        console.log(`Starting session ${sessionNumber}/${sessionCount}...`);     
+        // Generate random geolocation
+        const geoLocation = randomizeGeolocation();
+        
         const session = await bb.sessions.create({
             projectId: BROWSERBASE_PROJECT_ID,
-            region: 'us-east-1'
+            region: 'us-east-1',
+            proxies: [{
+                type: 'browserbase',
+                geolocation: {
+                    city: geoLocation.city,
+                    country: geoLocation.country,
+                    ...(geoLocation.state && { state: geoLocation.state })
+                }
+            }]
         });
 
         // look at Browserbase.js fingerprint for viewports
@@ -300,10 +312,41 @@ function generatePlanSelection() {
 }
 
 function generateUser() {
+    const regularDomains = [
+        "hogmail.com",
+        "squeak.com", 
+        "furryfamilies.com",
+        "quillpost.net",
+        "spikeymail.org",
+        "hedgehoghaven.com",
+        "pricklypal.net",
+        "snufflemail.com",
+        "spinyspace.org",
+        "hedgenet.com"
+    ];
+
+    const industryDomains = [
+        "paramouse.com",
+        "warnerhogs.com",
+        "indiehogfilms.com",
+        "hedgehogpictures.com",
+        "quillflix.com",
+        "spikeworks.com",
+        "burrowbrothers.com",
+        "hogartsentertainment.com",
+        "pricklypictures.com",
+        "spinemation.com"
+    ];
+
     const adjectives = [
         // Hedgehog traits
         "spiky", "sleepy", "speedy", "grumpy", "happy", "snuggly", "tiny", "rolly", "fuzzy",
         "cozy", "sniffing", "curious", "hungry", "adventurous", "bouncy", "wiggly", "giggly",
+        // Movie watching traits
+        "binging", "watching", "streaming", "viewing", "chilling", "relaxing", "comfy",
+        "snacking", "moviegoing", "cinematic",
+        // Kid-friendly adjectives
+        "playful", "silly", "jumpy", "sparkly", "magical", "dancing", "singing", "laughing",
         // Engineering traits
         "debugging", "coding", "hacking", "building", "shipping", "testing", "deploying",
         "scaling", "optimizing", "refactoring",
@@ -315,15 +358,32 @@ function generateUser() {
         // Hedgehog names
         "sonic", "spike", "prickles", "hoglet", "nibbles", "waddles", "pokey", "ziggy",
         "quills", "bramble", "thistle",
+        // Movie watching names
+        "moviebuff", "cinephile", "filmfan", "bingewatcher", "couchpotato", "streammaster",
+        "flickpicker", "showtime", "cinema",
+        // Kid names
+        "princess", "superhero", "dragon", "unicorn", "wizard", "fairy", "pirate", "ninja",
+        "astronaut", "dinosaur", "mermaid",
         // Engineering terms
         "dev", "sre", "backend", "frontend", "fullstack", "devops", "sysadmin", "architect",
         // Growth/Product terms
         "product", "growth", "metrics", "funnel", "journey", "northstar", "pmf", "mvp"
     ];
 
+    const useIndustryDomain = Math.random() < 0.1; // 10% chance
+    const domainList = useIndustryDomain ? industryDomains : regularDomains;
+    const randomDomain = domainList[Math.floor(Math.random() * domainList.length)];
+    
     const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
     const randomName = names[Math.floor(Math.random() * names.length)];
-    const username = `${randomAdjective}_${randomName}`;
+    
+    // Generate random alphanumeric suffix (6 characters)
+    const alphanumeric = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const suffix = Array.from({ length: 3 }, () => 
+        alphanumeric.charAt(Math.floor(Math.random() * alphanumeric.length))
+    ).join('');
+    
+    const username = `${randomAdjective}_${randomName}_${suffix}`;
     const utmParams = generateUtm();
     
     // Generate random password
@@ -334,7 +394,7 @@ function generateUser() {
 
     return {
         username,
-        email: `${username}@example.com`,
+        email: `${username}@${randomDomain}`,
         password,
         utmParams
     };
