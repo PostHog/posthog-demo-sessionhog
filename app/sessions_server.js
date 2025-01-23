@@ -2,23 +2,36 @@ import { chromium } from "playwright-core";
 import Browserbase from "@browserbasehq/sdk";
 import dotenv from 'dotenv';
 import path from 'path';
+import cron from 'node-cron';
 import { fileURLToPath } from 'url';
-import { randomizeBrowser } from './tools/randomBrowser.js';
-import { randomizeGeolocation } from './tools/randomGeolocation.js';
+import { randomizeBrowser } from '../tools/randomBrowser.js';
+import { randomizeGeolocation } from '../tools/randomGeolocation.js';
 import { 
     moveMouseHuman, 
     naturalClick, 
     naturalScroll, 
     naturalType,
     humanPause
-} from './tools/mouseMove.js';
+} from '../tools/mouseMove.js';
 
+// Schedule for Sunday-Wednesday: Runs twice a day at 8 AM and 6 PM
+cron.schedule('0 8,18 * * 0-3', () => {
+    console.log(`[${new Date()}] Running session management logic (Sunday-Wednesday, twice a day).`);
+    // Add your session management logic here
+  });
+  
+  // Schedule for Thursday-Saturday: Runs three times a day at 8 AM, 1 PM, and 6 PM
+  cron.schedule('0 8,13,18 * * 4-6', () => {
+    console.log(`[${new Date()}] Running session management logic (Thursday-Saturday, three times a day).`);
+    // Add your session management logic here
+  });
+  
 // Set up __dirname equivalent for ES modules
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // const baseDomain = 'https://friendly-dollop-7rj6qj44773rv46-5000.app.github.dev/';
-const baseDomain = 'https://psychic-robot-rr5q95vj6w3xv5v-5000.app.github.dev/';
-// const baseDomain = 'https://posthog-demo-3000.fly.dev/';
+// const baseDomain = 'https://psychic-robot-rr5q95vj6w3xv5v-5000.app.github.dev/';
+const baseDomain = 'https://posthog-demo-3000.fly.dev/';
 
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '.env') });

@@ -5,7 +5,8 @@
   "main": "sessions_server.js",
   "type": "module",
   "scripts": {
-    "start": "node sessions_server.js",
+    "start": "node app/sessions_server.js",
+    "deploy": "fly deploy",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
