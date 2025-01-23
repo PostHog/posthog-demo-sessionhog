@@ -17,7 +17,8 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // const baseDomain = 'https://friendly-dollop-7rj6qj44773rv46-5000.app.github.dev/';
-const baseDomain = 'https://posthog-demo-3000.fly.dev/';
+const baseDomain = 'https://psychic-robot-rr5q95vj6w3xv5v-5000.app.github.dev/';
+// const baseDomain = 'https://posthog-demo-3000.fly.dev/';
 
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '.env') });
@@ -40,13 +41,12 @@ const bb = new Browserbase({
 });
 
 async function runSession(sessionNumber) {
+    let session;
     try {
-
         console.log(`Starting session ${sessionNumber}/${sessionCount}...`);     
-        // Generate random geolocation
         const geoLocation = randomizeGeolocation();
         
-        const session = await bb.sessions.create({
+        session = await bb.sessions.create({
             projectId: BROWSERBASE_PROJECT_ID,
             region: 'us-east-1',
             proxies: [{
@@ -100,8 +100,26 @@ async function runSession(sessionNumber) {
             // Initial page load
             await page.goto(`${baseDomain}?utm_source=${utmParams.utm_source}&utm_medium=${utmParams.utm_medium}&utm_campaign=${utmParams.utm_campaign}`, { 
                 waitUntil: "networkidle",
-                timeout: 30000 
+                timeout: 60000 
             });
+
+            // Handle GitHub Codespaces Continue button if feeding sessions to private demo project
+            try {
+                const continueButton = await page.waitForSelector([
+                    'button.btn-primary.btn.js-toggle-hidden',
+                    'button:has-text("Continue")',
+                    '[onclick*="tunnel_phishing_protection"]'
+                ].join(','), { timeout: 5000 });
+                
+                if (continueButton) {
+                    await continueButton.click();
+                    // Wait for the cookie to be set and page to settle
+                    await page.waitForLoadState('networkidle');
+                }
+            } catch (buttonError) {
+                // Button wasn't found or wasn't needed, continue with normal flow
+                console.log('No CodeSpaces continue button found, proceeding with normal flow');
+            }
             
             await humanPause(page, 'MEDIUM');
             
@@ -165,8 +183,24 @@ async function runSession(sessionNumber) {
         try {
             await humanPause(page, 'MEDIUM');
             
-            // Get CSRF token
-            const csrfToken = await page.$eval('input[name="csrf_token"]', el => el.value);
+            // Get CSRF token with better error handling and fallbacks
+            let csrfToken;
+            try {
+                // Try multiple selectors in order of preference
+                csrfToken = await page.evaluate(() => {
+                    return (
+                        document.querySelector('input[name="csrf_token"]')?.value ||
+                        document.querySelector('meta[name="csrf-token"]')?.content ||
+                        document.querySelector('[data-csrf]')?.getAttribute('data-csrf')
+                    );
+                });
+                
+                if (!csrfToken) {
+                    console.warn('CSRF token not found, proceeding without it');
+                }
+            } catch (error) {
+                console.warn('Error getting CSRF token:', error.message);
+            }
             
             // Fill form
             await page.fill('#username', user.username);
@@ -280,6 +314,18 @@ async function runSession(sessionNumber) {
     } catch (error) {
         console.error(`Error in session ${sessionNumber}:`, error.message);
         return false;
+    } finally {
+        // Cleanup if session was created but something went wrong
+        if (session?.id) {
+            try {
+                await bb.sessions.update(session.id, {
+                    status: "REQUEST_RELEASE",
+                    projectId: BROWSERBASE_PROJECT_ID,
+                });
+            } catch (cleanupError) {
+                console.warn(`Failed to cleanup session ${session.id}:`, cleanupError.message);
+            }
+        }
     }
 }
 
@@ -326,32 +372,32 @@ function generateUser() {
     ];
 
     const industryDomains = [
-        "paramouse.com",
-        "warnerhogs.com",
-        "indiehogfilms.com",
-        "hedgehogpictures.com",
-        "quillflix.com",
-        "spikeworks.com",
-        "burrowbrothers.com",
-        "hogartsentertainment.com",
-        "pricklypictures.com",
-        "spinemation.com"
+        "pixhog.biz",
+        "imaginhog.ai",
+        "marvelhogstudios.io",
+        "hannahogbera.com",
+        "dreamhogs.biz",
+        "bluespiky.com",
+        "illuminhogion.tech",
+        "hogartsentertainment.tech",
+        "pricklypictures.app",
+        "spinemation.io"
     ];
 
     const adjectives = [
         // Hedgehog traits
         "spiky", "sleepy", "speedy", "grumpy", "happy", "snuggly", "tiny", "rolly", "fuzzy",
-        "cozy", "sniffing", "curious", "hungry", "adventurous", "bouncy", "wiggly", "giggly",
+        "cozy", "sniffing", "curious", "hungry", "adventurou$", "bouncy", "wiggly", "giggly",
         // Movie watching traits
         "binging", "watching", "streaming", "viewing", "chilling", "relaxing", "comfy",
         "snacking", "moviegoing", "cinematic",
         // Kid-friendly adjectives
-        "playful", "silly", "jumpy", "sparkly", "magical", "dancing", "singing", "laughing",
+        "silli", "jumpy", "sparkly", "magical", "dancing", "singing", "laffy",
         // Engineering traits
         "debugging", "coding", "hacking", "building", "shipping", "testing", "deploying",
         "scaling", "optimizing", "refactoring",
         // Growth/Product traits
-        "growing", "launching", "iterating", "measuring", "analyzing", "converting"
+        "GrowinG", "launching", "iterating", "mea$uring", "analy$ing", "convert|ng"
     ];
 
     const names = [
@@ -365,7 +411,7 @@ function generateUser() {
         "princess", "superhero", "dragon", "unicorn", "wizard", "fairy", "pirate", "ninja",
         "astronaut", "dinosaur", "mermaid",
         // Engineering terms
-        "dev", "sre", "backend", "frontend", "fullstack", "devops", "sysadmin", "architect",
+        "dev", "sre", "backend", "frontend", "fullstack", "devops", "ai_ops", "architect", "llm_ops",
         // Growth/Product terms
         "product", "growth", "metrics", "funnel", "journey", "northstar", "pmf", "mvp"
     ];
@@ -375,7 +421,8 @@ function generateUser() {
     const randomDomain = domainList[Math.floor(Math.random() * domainList.length)];
     
     const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const randomName = names[Math.floor(Math.random() * names.length)];
+    const randomName = names[Math.floor(Math.random() * names.length)]
+        .charAt(0).toUpperCase() + names[Math.floor(Math.random() * names.length)];
     
     // Generate random alphanumeric suffix (6 characters)
     const alphanumeric = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -383,12 +430,12 @@ function generateUser() {
         alphanumeric.charAt(Math.floor(Math.random() * alphanumeric.length))
     ).join('');
     
-    const username = `${randomAdjective}_${randomName}_${suffix}`;
+    const username = `${randomAdjective}${randomName}${suffix}`;
     const utmParams = generateUtm();
     
     // Generate random password
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    const password = Array.from({ length: 12 }, () => 
+    const password = Array.from({ length: 9 }, () => 
         characters.charAt(Math.floor(Math.random() * characters.length))
     ).join('');
 
@@ -401,7 +448,7 @@ function generateUser() {
 }
 
 function generateUtm() {
-    const sources = ["google", "facebook", "twitter", "direct", "email"];
+    const sources = ["google", "chatgpt", "facebook", "twitter", "direct", "email"];
     const campaigns = ["winter2024", "socialads", "emailblast", "organic"];
     const mediums = ["search", "social", "cpc", "email", "organic"];
     const searchTerms = ["movie streaming", "watch movies online", "best streaming service", "new movies"];
