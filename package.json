@@ -1,7 +1,7 @@
 {
   "name": "hogflix-sessions-service",
   "version": "1.0.0",
-  "description": "Browserbase sessions service for Hogflix",
+  "description": "Automated sessions service for Hogflix",
   "main": "sessions_server.js",
   "type": "module",
   "scripts": {

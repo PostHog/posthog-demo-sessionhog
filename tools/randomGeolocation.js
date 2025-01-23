@@ -1,7 +1,7 @@
 const cities = [
   {
     city: "New York",
-    state: "NY",
+    state: "US-NY",
     country: "US",
     latitude: 40.7128,
     longitude: -74.0060
@@ -128,14 +128,14 @@ const cities = [
   },
   {
     city: "Prairie Village",
-    state: "KS",
+    state: "US-KS",
     country: "US",
     latitude: 38.9917,
     longitude: -94.6336
   },
   {
     city: "Saint Charles",
-    state: "MO",
+    state: "US-MO",
     country: "US",
     latitude: 38.7881,
     longitude: -90.4974
