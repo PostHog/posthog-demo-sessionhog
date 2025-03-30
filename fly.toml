@@ -7,12 +7,16 @@ app = "posthog-demo-sessionhog"
 primary_region = "lax"
 
 [build]
-  dockerfile = "Dockerfile"
+  builder = "heroku/buildpacks:20"
+  buildpacks = ["heroku/nodejs"]
 
 [env]
   PORT = "3000"
   NODE_ENV = "production"
   TZ = "America/Los_Angeles"
+
+[processes]
+  app = "node app/sessions_server.js"
 
 [http_service]
   internal_port = 3000
