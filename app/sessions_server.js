@@ -17,6 +17,52 @@ import {
 // Configure timezone for cron jobs
 process.env.TZ = process.env.TZ || 'America/Los_Angeles';
 
+// Set up __dirname equivalent for ES modules
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load environment variables
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+const BROWSERBASE_API_KEY = process.env.BROWSERBASE_API_KEY || '';
+const BROWSERBASE_PROJECT_ID = process.env.BROWSERBASE_PROJECT_ID || '';
+const BASE_DOMAIN = process.env.BASE_DOMAIN || 'https://posthog-demo-3000.fly.dev/';
+
+// Validate required environment variables
+if (!BROWSERBASE_API_KEY) {
+    console.error('Error: BROWSERBASE_API_KEY is required but not set');
+    process.exit(1);
+}
+
+if (!BROWSERBASE_PROJECT_ID) {
+    console.error('Error: BROWSERBASE_PROJECT_ID is required but not set');
+    process.exit(1);
+}
+
+// Validate BASE_DOMAIN format
+try {
+    new URL(BASE_DOMAIN);
+} catch (error) {
+    console.error('Error: BASE_DOMAIN must be a valid URL');
+    process.exit(1);
+}
+
+// Initialize Browserbase globally
+const bb = new Browserbase({
+    apiKey: BROWSERBASE_API_KEY,
+    projectId: BROWSERBASE_PROJECT_ID,
+    region: 'us-east-1'
+});
+
+// Add validation for Browserbase connection
+try {
+    // Test the connection by attempting to list sessions
+    await bb.sessions.list({ projectId: BROWSERBASE_PROJECT_ID });
+    console.log('Successfully connected to Browserbase');
+} catch (error) {
+    console.error('Failed to connect to Browserbase:', error.message);
+    process.exit(1);
+}
+
 // Add a lock mechanism to prevent multiple instances from running the same job
 let isJobRunning = false;
 
@@ -103,20 +149,8 @@ process.on('SIGTERM', async () => {
     process.exit(0);
 });
 
-// Set up __dirname equivalent for ES modules
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// const baseDomain = 'https://friendly-dollop-7rj6qj44773rv46-5000.app.github.dev/';
-// const baseDomain = 'https://psychic-robot-rr5q95vj6w3xv5v-5000.app.github.dev/';
-const baseDomain = 'https://posthog-demo-3000.fly.dev/';
-
-// Load environment variables
-dotenv.config({ path: path.join(__dirname, '.env') });
-
-const BROWSERBASE_API_KEY = process.env.BROWSERBASE_API_KEY || '';
-const BROWSERBASE_PROJECT_ID = process.env.BROWSERBASE_PROJECT_ID || '';
-
 console.log('Sessions server starting...');
+console.log(`Base domain: ${BASE_DOMAIN}`);
 
 async function runSession(sessionNumber) {
     let session;
@@ -176,7 +210,7 @@ async function runSession(sessionNumber) {
 
         try {
             // Initial page load
-            await page.goto(`${baseDomain}?utm_source=${utmParams.utm_source}&utm_medium=${utmParams.utm_medium}&utm_campaign=${utmParams.utm_campaign}`, { 
+            await page.goto(`${BASE_DOMAIN}?utm_source=${utmParams.utm_source}&utm_medium=${utmParams.utm_medium}&utm_campaign=${utmParams.utm_campaign}`, { 
                 waitUntil: "networkidle",
                 timeout: 60000 
             });
@@ -204,7 +238,7 @@ async function runSession(sessionNumber) {
             // Navigate to signup with Promise.all to handle navigation
             await Promise.all([
                 page.waitForLoadState('networkidle'),
-                page.goto(`${baseDomain}signup`)
+                page.goto(`${BASE_DOMAIN}signup`)
             ]);
             
             // Wait for form to be interactive
@@ -257,7 +291,7 @@ async function runSession(sessionNumber) {
 
         
         // Login section
-        await page.goto(`${baseDomain}login`, { waitUntil: "domcontentloaded" });
+        await page.goto(`${BASE_DOMAIN}login`, { waitUntil: "domcontentloaded" });
         try {
             await humanPause(page, 'MEDIUM');
             
@@ -313,7 +347,7 @@ async function runSession(sessionNumber) {
         await humanPause(page, 'MEDIUM');
 
         // Wait for DOM to load
-        await page.goto(`${baseDomain}`, { waitUntil: "domcontentloaded" });
+        await page.goto(`${BASE_DOMAIN}`, { waitUntil: "domcontentloaded" });
 
 
         // First check and handle any modal
@@ -376,7 +410,7 @@ async function runSession(sessionNumber) {
         await browser.close();
         
         // Build the full URL with UTM parameters
-        const fullUrl = `${baseDomain}?utm_source=${utmParams.utm_source}&utm_medium=${utmParams.utm_medium}&utm_campaign=${utmParams.utm_campaign}${utmParams.utm_term ? '&utm_term=' + utmParams.utm_term : ''}`;
+        const fullUrl = `${BASE_DOMAIN}?utm_source=${utmParams.utm_source}&utm_medium=${utmParams.utm_medium}&utm_campaign=${utmParams.utm_campaign}${utmParams.utm_term ? '&utm_term=' + utmParams.utm_term : ''}`;
 
         console.log(
             `Session ${sessionNumber} complete!\n` +
