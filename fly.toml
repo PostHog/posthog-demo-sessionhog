@@ -6,10 +6,6 @@
 app = "posthog-demo-sessionhog"
 primary_region = "lax"
 
-[build]
-  builder = "heroku/buildpacks:20"
-  buildpacks = ["heroku/nodejs"]
-
 [env]
   PORT = "3000"
   NODE_ENV = "production"
