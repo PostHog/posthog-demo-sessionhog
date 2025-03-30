@@ -3,6 +3,7 @@ import Browserbase from "@browserbasehq/sdk";
 import dotenv from 'dotenv';
 import path from 'path';
 import cron from 'node-cron';
+import express from 'express';
 import { fileURLToPath } from 'url';
 import { randomizeBrowser } from '../tools/randomBrowser.js';
 import { randomizeGeolocation } from '../tools/randomGeolocation.js';
@@ -26,6 +27,7 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 const BROWSERBASE_API_KEY = process.env.BROWSERBASE_API_KEY || '';
 const BROWSERBASE_PROJECT_ID = process.env.BROWSERBASE_PROJECT_ID || '';
 const BASE_DOMAIN = process.env.BASE_DOMAIN || 'https://posthog-demo-3000.fly.dev/';
+const API_KEY = process.env.API_KEY || '';
 
 // Validate required environment variables
 if (!BROWSERBASE_API_KEY) {
@@ -35,6 +37,11 @@ if (!BROWSERBASE_API_KEY) {
 
 if (!BROWSERBASE_PROJECT_ID) {
     console.error('Error: BROWSERBASE_PROJECT_ID is required but not set');
+    process.exit(1);
+}
+
+if (!API_KEY) {
+    console.error('Error: API_KEY is required but not set');
     process.exit(1);
 }
 
@@ -65,26 +72,60 @@ try {
 
 // Add a lock mechanism to prevent multiple instances from running the same job
 let isJobRunning = false;
+let currentJobStats = {
+    startTime: null,
+    completedSessions: 0,
+    totalSessions: 0,
+    errors: []
+};
 
-// Unified cron job function
-async function runScheduledSessions(dayType) {
+// API key middleware
+const apiKeyAuth = (req, res, next) => {
+    const apiKey = req.headers['x-api-key'];
+    if (!apiKey || apiKey !== API_KEY) {
+        return res.status(401).json({
+            status: 'error',
+            message: 'Unauthorized'
+        });
+    }
+    next();
+};
+
+// Unified session running function
+async function runScheduledSessions(type, options = {}) {
     if (isJobRunning) {
         console.log('Another job is already running. Skipping this execution.');
-        return;
+        return false;
     }
 
     try {
         isJobRunning = true;
-        console.log(`[${new Date().toISOString()}] Starting ${dayType} session management logic...`);
+        const sessionCount = options.sessionCount || Math.floor(Math.random() * (52 - 23 + 1)) + 23;
         
-        // Generate random number of sessions between 23 and 52
-        const sessionCount = Math.floor(Math.random() * (52 - 23 + 1)) + 23;
+        currentJobStats = {
+            startTime: new Date().toISOString(),
+            completedSessions: 0,
+            totalSessions: sessionCount,
+            errors: []
+        };
+
+        console.log(`[${new Date().toISOString()}] Starting ${type} session management logic...`);
         console.log(`Starting ${sessionCount} random sessions...`);
 
         const results = [];
         for (let i = 1; i <= sessionCount; i++) {
-            const result = await runSession(i);
-            results.push(result);
+            try {
+                const result = await runSession(i, sessionCount);
+                results.push(result);
+                if (result) {
+                    currentJobStats.completedSessions++;
+                }
+            } catch (error) {
+                currentJobStats.errors.push({
+                    session: i,
+                    error: error.message
+                });
+            }
             
             // Add a random delay between sessions (2-5 seconds)
             const delay = Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000;
@@ -94,13 +135,84 @@ async function runScheduledSessions(dayType) {
         // Final statistics
         const successCount = results.filter(r => r).length;
         console.log(`\nCompleted ${successCount}/${sessionCount} sessions successfully`);
+        return true;
 
     } catch (error) {
         console.error('Error in scheduled job:', error);
+        currentJobStats.errors.push({
+            session: 'global',
+            error: error.message
+        });
+        return false;
     } finally {
         isJobRunning = false;
     }
 }
+
+// Express app setup
+const app = express();
+app.use(express.json());
+const port = process.env.PORT || 3000;
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        timezone: process.env.TZ,
+        isJobRunning
+    });
+});
+
+// Trigger sessions endpoint
+app.post('/trigger-sessions', apiKeyAuth, async (req, res) => {
+    if (isJobRunning) {
+        return res.status(409).json({
+            status: 'error',
+            message: 'Another job is already running',
+            currentJob: currentJobStats
+        });
+    }
+
+    const {
+        sessionCount,
+        maxConcurrent = 1
+    } = req.body;
+
+    try {
+        // Start the session run asynchronously
+        runScheduledSessions('on-demand', {
+            sessionCount,
+            maxConcurrent
+        }).catch(error => {
+            console.error('Error in on-demand session:', error);
+        });
+
+        res.status(202).json({
+            status: 'accepted',
+            message: 'Session simulation started',
+            config: {
+                sessionCount: sessionCount || 'random(23-52)',
+                maxConcurrent
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: error.message
+        });
+    }
+});
+
+// Status endpoint
+app.get('/status', apiKeyAuth, (req, res) => {
+    res.status(200).json({
+        status: isJobRunning ? 'running' : 'idle',
+        currentJob: isJobRunning ? currentJobStats : null,
+        timestamp: new Date().toISOString(),
+        timezone: process.env.TZ
+    });
+});
 
 // Schedule for Sunday-Wednesday: Runs twice a day at 8 AM and 6 PM Pacific Time
 cron.schedule('0 8,18 * * 0-3', () => {
@@ -116,22 +228,10 @@ cron.schedule('0 8,13,18 * * 4-6', () => {
     timezone: "America/Los_Angeles"
 });
 
-// Health check endpoint for Fly.io
-import express from 'express';
-const app = express();
-const port = process.env.PORT || 3000;
-
-app.get('/health', (req, res) => {
-    res.status(200).json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        timezone: process.env.TZ,
-        isJobRunning
-    });
-});
-
+// Start the server
 app.listen(port, () => {
-    console.log(`Health check server listening on port ${port}`);
+    console.log(`Server listening on port ${port}`);
+    console.log(`Base domain: ${BASE_DOMAIN}`);
 });
 
 // Handle graceful shutdown
