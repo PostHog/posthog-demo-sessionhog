@@ -1,9 +1,9 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm install"
+buildCommand = "pnpm install"
 
 [deploy]
-startCommand = "npm run cron"
+startCommand = "pnpm run cron"
 restartPolicyType = "NEVER"
 
 [deploy.env]
