@@ -22,7 +22,7 @@ process.env.TZ = process.env.TZ || 'America/Los_Angeles';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Load environment variables
-dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const BROWSERBASE_API_KEY = process.env.BROWSERBASE_API_KEY || '';
 const BROWSERBASE_PROJECT_ID = process.env.BROWSERBASE_PROJECT_ID || '';
@@ -252,10 +252,10 @@ process.on('SIGTERM', async () => {
 console.log('Sessions server starting...');
 console.log(`Base domain: ${BASE_DOMAIN}`);
 
-async function runSession(sessionNumber) {
+async function runSession(sessionNumber, totalSessions) {
     let session;
     try {
-        console.log(`Starting session ${sessionNumber}/${sessionCount}...`);     
+        console.log(`Starting session ${sessionNumber}/${totalSessions}...`);     
         const geoLocation = randomizeGeolocation();
         
         session = await bb.sessions.create({
